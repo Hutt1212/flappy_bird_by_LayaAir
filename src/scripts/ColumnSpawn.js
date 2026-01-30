@@ -45,7 +45,7 @@ export default class ColumnSpawn extends Laya.Script {
         this._timer += Laya.timer.delta;
         if (this._timer >= this._ranTime) {
             this._timer = 0;
-            this._ranTime = this.getRandom(1000, 2000);
+            this._ranTime = this.getRandom(1000, 1700);
             this.spawn();
         }
         this._checkScore();
@@ -54,11 +54,11 @@ export default class ColumnSpawn extends Laya.Script {
     spawn() {
         var bottomColumn = this.columnPre.create();
         this._columnParent.addChild(bottomColumn);
-        var bottomY = this.getRandom(600, 800);
+        var bottomY = this.getRandom(400, 800);
         var bottomX = 1745;
         bottomColumn.pos(bottomX, bottomY);
 
-        var cha = this.getRandom(220, 440);
+        var cha = this.getRandom(150, 300);
 
         var topY = bottomY - cha;
 
