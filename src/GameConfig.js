@@ -16,10 +16,10 @@ export default class GameConfig {
 }
 GameConfig.width = 1920;
 GameConfig.height = 1080;
-GameConfig.scaleMode ="showall";
+GameConfig.scaleMode ="fixedwidth";
 GameConfig.screenMode = "none";
-GameConfig.alignV = "middle";
-GameConfig.alignH = "center";
+GameConfig.alignV = "top";
+GameConfig.alignH = "left";
 GameConfig.startScene = "page.scene";
 GameConfig.sceneRoot = "";
 GameConfig.debug = false;

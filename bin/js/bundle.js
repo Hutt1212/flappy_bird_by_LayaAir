@@ -8,28 +8,48 @@
             this.xx = null;
             this._onGameOver = null;
             this._onGameStart = null;
+            this._onDash = null;
             this._speedX = -7;
+            this._baseSpeedX = -7;
+            this._dashMultiplier = 2;
+            this._dashDuration = 220;
+            this._isDashing = false;
+            this._isGameOver = false;
             this._rigidBody = null;
         }
         onAwake() {
             this._rigidBody = this.owner.getComponent(Laya.RigidBody);
+            this._baseSpeedX = this._speedX;
             if (this._rigidBody) {
                 var started = !!Laya.stage.__gameStarted;
                 this._rigidBody.linearVelocity = { x: started ? this._speedX : 0, y: 0 };
             }
             this._onGameStart = () => {
                 Laya.stage.__gameStarted = true;
+                this._isGameOver = false;
                 if (this._rigidBody) {
                     this._rigidBody.linearVelocity = { x: this._speedX, y: 0 };
                 }
             };
             this._onGameOver = () => {
+                this._isGameOver = true;
                 if (this._rigidBody) {
                     this._rigidBody.linearVelocity = { x: 0, y: 0 };
                 }
             };
+            this._onDash = (data) => {
+                if (this._isGameOver || !Laya.stage.__gameStarted || !this._rigidBody) return;
+                const multiplier = data && data.multiplier ? data.multiplier : this._dashMultiplier;
+                const duration = data && data.duration ? data.duration : this._dashDuration;
+                this._isDashing = true;
+                this._speedX = this._baseSpeedX * multiplier;
+                this._rigidBody.linearVelocity = { x: this._speedX, y: 0 };
+                Laya.timer.clear(this, this._endDash);
+                Laya.timer.once(duration, this, this._endDash);
+            };
             Laya.stage.on("GameStart", this, this._onGameStart);
             Laya.stage.on("GameOver", this, this._onGameOver);
+            Laya.stage.on("Dash", this, this._onDash);
         }
         onDestroy() {
             if (this._onGameStart) {
@@ -37,6 +57,18 @@
             }
             if (this._onGameOver) {
                 Laya.stage.off("GameOver", this, this._onGameOver);
+            }
+            if (this._onDash) {
+                Laya.stage.off("Dash", this, this._onDash);
+            }
+            Laya.timer.clear(this, this._endDash);
+        }
+
+        _endDash() {
+            this._isDashing = false;
+            this._speedX = this._baseSpeedX;
+            if (!this._isGameOver && Laya.stage.__gameStarted && this._rigidBody) {
+                this._rigidBody.linearVelocity = { x: this._speedX, y: 0 };
             }
         }
     }
@@ -69,11 +101,10 @@
             this._onGameOver = null;
             this._rigidBody = null;
             this._gravityScale = 0;
-            this._isDashing = false;
             this._lastDashTime = -999999;
-            this._dashSpeed = 12;
-            this._dashDuration = 200;
+            this._dashDuration = 220;
             this._dashCooldown = 300;
+            this._dashMultiplier = 2;
         }
         onAwake() {
             isGameover = false;
@@ -132,21 +163,12 @@
             if (!isStarted) {
                 Laya.stage.event("GameStart");
             }
-            if (!this._rigidBody) return;
             const now = Laya.timer.currTimer;
-            if (this._isDashing || (now - this._lastDashTime) < this._dashCooldown) return;
-            this._isDashing = true;
+            if ((now - this._lastDashTime) < this._dashCooldown) return;
             this._lastDashTime = now;
-            const currentY = this._rigidBody.linearVelocity ? this._rigidBody.linearVelocity.y : 0;
-            this._rigidBody.linearVelocity = { x: this._dashSpeed, y: currentY };
-            Laya.timer.once(this._dashDuration, this, () => {
-                if (!this._rigidBody || isGameover) {
-                    this._isDashing = false;
-                    return;
-                }
-                const keepY = this._rigidBody.linearVelocity ? this._rigidBody.linearVelocity.y : 0;
-                this._rigidBody.linearVelocity = { x: 0, y: keepY };
-                this._isDashing = false;
+            Laya.stage.event("Dash", {
+                multiplier: this._dashMultiplier,
+                duration: this._dashDuration
             });
         }
         onUpdate() {
@@ -214,7 +236,7 @@
             this._timer += Laya.timer.delta;
             if (this._timer >= this._ranTime) {
                 this._timer = 0;
-                this._ranTime = this.getRandom(1000, 2000);
+                this._ranTime = this.getRandom(1000, 1700);
                 this.spawn();
             }
             this._checkScore();
@@ -223,11 +245,11 @@
         spawn() {
             var bottomColumn = this.columnPre.create();
             this._columnParent.addChild(bottomColumn);
-            var bottomY = this.getRandom(600, 800);
+            var bottomY = this.getRandom(400, 800);
             var bottomX = 1745;
             bottomColumn.pos(bottomX, bottomY);
 
-            var cha = this.getRandom(220, 440);
+            var cha = this.getRandom(150, 300);
 
             var topY = bottomY - cha;
 
@@ -291,10 +313,10 @@
     }
     GameConfig.width = 1920;
     GameConfig.height = 1080;
-    GameConfig.scaleMode ="showall";
+    GameConfig.scaleMode ="fixedwidth";
     GameConfig.screenMode = "none";
-    GameConfig.alignV = "middle";
-    GameConfig.alignH = "center";
+    GameConfig.alignV = "top";
+    GameConfig.alignH = "left";
     GameConfig.startScene = "page.scene";
     GameConfig.sceneRoot = "";
     GameConfig.debug = false;
@@ -316,14 +338,14 @@
             this._bestLabel = null;
             this._startLabel = null;
             this._gameOverLabel = null;
+            this._replayBtn = null;
             this._onAddScore = null;
             this._onGameStart = null;
             this._onGameOver = null;
             this._onResize = null;
-            this._onPointerDown = null;
+            this._onReplayClick = null;
             this._isRestarting = false;
-            this._startText = "Nhấn để bắt đầu đi lè nhà lè nhè";
-            this._restartText = "Nhấn để chơi lại nhé thằng ngu";
+            this._startText = "NHẤN ĐỂ BẮT ĐẦU ĐI CỨ LÈ NHÀ LÈ NHÈ MÃI";
         }
 
         onAwake() {
@@ -377,6 +399,10 @@
                 bold: true,
                 align: "center",
             });
+            this._replayBtn = this.owner.getChildByName("replay");
+            if (this._replayBtn) {
+                this._replayBtn.visible = false;
+            }
             this._best = Number(Laya.LocalStorage.getItem(SCORE_KEY)) || 0;
             this._updateLabels();
             this._layoutLabels();
@@ -386,13 +412,15 @@
             this._onGameStart = this._handleGameStart.bind(this);
             this._onGameOver = this._handleGameOver.bind(this);
             this._onResize = this._layoutLabels.bind(this);
-            this._onPointerDown = this._handlePointerDown.bind(this);
+            this._onReplayClick = this._handleReplayClick.bind(this);
 
             Laya.stage.on("AddScore", this, this._onAddScore);
             Laya.stage.on("GameStart", this, this._onGameStart);
             Laya.stage.on("GameOver", this, this._onGameOver);
             Laya.stage.on(Laya.Event.RESIZE, this, this._onResize);
-            Laya.stage.on(Laya.Event.MOUSE_DOWN, this, this._onPointerDown);
+            if (this._replayBtn) {
+                this._replayBtn.on(Laya.Event.CLICK, this, this._onReplayClick);
+            }
         }
 
         onDestroy() {
@@ -408,15 +436,21 @@
             if (this._onResize) {
                 Laya.stage.off(Laya.Event.RESIZE, this, this._onResize);
             }
-            if (this._onPointerDown) {
-                Laya.stage.off(Laya.Event.MOUSE_DOWN, this, this._onPointerDown);
+            if (this._replayBtn && this._onReplayClick) {
+                this._replayBtn.off(Laya.Event.CLICK, this, this._onReplayClick);
             }
         }
 
         _showStartScreen() {
-            if (this._startLabel) this._startLabel.text = this._startText;
+            
+            if (this._startLabel) {
+                const startText = this._startText || "NHAN DE BAT DAU";
+                this._startLabel.text = startText;
+            }
+
             if (this._startLabel) this._startLabel.visible = true;
             if (this._gameOverLabel) this._gameOverLabel.visible = false;
+            if (this._replayBtn) this._replayBtn.visible = false;
         }
 
         _handleGameStart() {
@@ -427,6 +461,7 @@
             Laya.stage.__gameStarted = true;
             if (this._startLabel) this._startLabel.visible = false;
             if (this._gameOverLabel) this._gameOverLabel.visible = false;
+            if (this._replayBtn) this._replayBtn.visible = false;
         }
 
         _handleAddScore() {
@@ -443,10 +478,7 @@
             if (this._state !== "playing") return;
             this._state = "gameover";
             if (this._gameOverLabel) this._gameOverLabel.visible = true;
-            if (this._startLabel) {
-                this._startLabel.text = this._restartText;
-                this._startLabel.visible = true;
-            }
+            if (this._replayBtn) this._replayBtn.visible = true;
         }
 
         _updateLabels() {
@@ -500,8 +532,7 @@
                 this._gameOverLabel.pos(0, Math.round(stageHeight * 0.4) + 80);
             }
         }
-
-        _handlePointerDown() {
+        _handleReplayClick() {
             if (this._state !== "gameover" || this._isRestarting) return;
             this._isRestarting = true;
             const sceneUrl = (this.owner && this.owner.url) ? this.owner.url : "page.scene";
@@ -517,6 +548,7 @@
                 })
             );
         }
+
     }
 
     class Main {

@@ -10,14 +10,14 @@ export default class GameManager extends Laya.Script {
         this._bestLabel = null;
         this._startLabel = null;
         this._gameOverLabel = null;
+        this._replayBtn = null;
         this._onAddScore = null;
         this._onGameStart = null;
         this._onGameOver = null;
         this._onResize = null;
-        this._onPointerDown = null;
+        this._onReplayClick = null;
         this._isRestarting = false;
-        this._startText = "Nhấn để bắt đầu đi lè nhà lè nhè";
-        this._restartText = "Nhấn để chơi lại nhé thằng ngu";
+        this._startText = "NHẤN ĐỂ BẮT ĐẦU ĐI CỨ LÈ NHÀ LÈ NHÈ MÃI";
     }
 
     onAwake() {
@@ -71,6 +71,10 @@ export default class GameManager extends Laya.Script {
             bold: true,
             align: "center",
         });
+        this._replayBtn = this.owner.getChildByName("replay");
+        if (this._replayBtn) {
+            this._replayBtn.visible = false;
+        }
         this._best = Number(Laya.LocalStorage.getItem(SCORE_KEY)) || 0;
         this._updateLabels();
         this._layoutLabels();
@@ -80,13 +84,15 @@ export default class GameManager extends Laya.Script {
         this._onGameStart = this._handleGameStart.bind(this);
         this._onGameOver = this._handleGameOver.bind(this);
         this._onResize = this._layoutLabels.bind(this);
-        this._onPointerDown = this._handlePointerDown.bind(this);
+        this._onReplayClick = this._handleReplayClick.bind(this);
 
         Laya.stage.on("AddScore", this, this._onAddScore);
         Laya.stage.on("GameStart", this, this._onGameStart);
         Laya.stage.on("GameOver", this, this._onGameOver);
         Laya.stage.on(Laya.Event.RESIZE, this, this._onResize);
-        Laya.stage.on(Laya.Event.MOUSE_DOWN, this, this._onPointerDown);
+        if (this._replayBtn) {
+            this._replayBtn.on(Laya.Event.CLICK, this, this._onReplayClick);
+        }
     }
 
     onDestroy() {
@@ -102,15 +108,21 @@ export default class GameManager extends Laya.Script {
         if (this._onResize) {
             Laya.stage.off(Laya.Event.RESIZE, this, this._onResize);
         }
-        if (this._onPointerDown) {
-            Laya.stage.off(Laya.Event.MOUSE_DOWN, this, this._onPointerDown);
+        if (this._replayBtn && this._onReplayClick) {
+            this._replayBtn.off(Laya.Event.CLICK, this, this._onReplayClick);
         }
     }
 
     _showStartScreen() {
-        if (this._startLabel) this._startLabel.text = this._startText;
+        
+        if (this._startLabel) {
+            const startText = this._startText || "NHAN DE BAT DAU";
+            this._startLabel.text = startText;
+        }
+
         if (this._startLabel) this._startLabel.visible = true;
         if (this._gameOverLabel) this._gameOverLabel.visible = false;
+        if (this._replayBtn) this._replayBtn.visible = false;
     }
 
     _handleGameStart() {
@@ -121,6 +133,7 @@ export default class GameManager extends Laya.Script {
         Laya.stage.__gameStarted = true;
         if (this._startLabel) this._startLabel.visible = false;
         if (this._gameOverLabel) this._gameOverLabel.visible = false;
+        if (this._replayBtn) this._replayBtn.visible = false;
     }
 
     _handleAddScore() {
@@ -137,10 +150,7 @@ export default class GameManager extends Laya.Script {
         if (this._state !== "playing") return;
         this._state = "gameover";
         if (this._gameOverLabel) this._gameOverLabel.visible = true;
-        if (this._startLabel) {
-            this._startLabel.text = this._restartText;
-            this._startLabel.visible = true;
-        }
+        if (this._replayBtn) this._replayBtn.visible = true;
     }
 
     _updateLabels() {
@@ -194,8 +204,7 @@ export default class GameManager extends Laya.Script {
             this._gameOverLabel.pos(0, Math.round(stageHeight * 0.4) + 80);
         }
     }
-
-    _handlePointerDown() {
+    _handleReplayClick() {
         if (this._state !== "gameover" || this._isRestarting) return;
         this._isRestarting = true;
         const sceneUrl = (this.owner && this.owner.url) ? this.owner.url : "page.scene";
@@ -211,4 +220,5 @@ export default class GameManager extends Laya.Script {
             })
         );
     }
+
 }
